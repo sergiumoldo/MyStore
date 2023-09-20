@@ -1,5 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MyStore.Data;
+using MyStore.Helpers;
+using MyStore.Models;
 using MyStore.NewFolder;
 
 namespace MyStore.Controllers
@@ -8,61 +11,89 @@ namespace MyStore.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly StoreContext context;
-        public CategoriesController(StoreContext context)
+        
+        private readonly ICategoryRepository repository;
+
+        public CategoriesController( ICategoryRepository repository)
         {
-            this.context = context;
+            this.repository = repository;
         }
 
         [HttpGet]
-        public IEnumerable<Category> Get()
+        public IEnumerable<CategoryModel> Get()
         {
-            var allCategories = context.Categories.ToList();
-            return allCategories;
+            var allcategories = repository.GetAll();
+            var modelToReturn = new List<CategoryModel>();  
+
+            foreach(var category in allcategories)
+            {
+                modelToReturn.Add(category.ToCategoryModel());
+            }
+
+            return modelToReturn;
         }
 
         [HttpGet("{id}")]
-        public Category? GetById(int id)
+        public ActionResult<CategoryModel> GetById(int id)
         {
-            var category = context.Categories.Find(id);
-            return category;
+            var categoryFromDb = repository.GetCategoryById(id);
+
+            if(categoryFromDb == null)
+            {
+                return NotFound();
+            }
+
+            var model = new CategoryModel();
+
+            model = categoryFromDb.ToCategoryModel();
+
+            return Ok(model);
         }
 
         [HttpPut("{id}")]
-        public Category Update(int id, Category category)
+        public ActionResult<CategoryModel> Update(int id, CategoryModel model)
         {
-            var cat = context.Categories.Find(id);
+            var cat = repository.GetCategoryById(id);
 
-            if(cat != null)
+            if (cat == null)
             {
-                TryUpdateModelAsync(cat);
-                context.Categories.Update(category);
-                context.SaveChanges();
+                return NotFound();
             }
-           
-            return cat;
+
+            TryUpdateModelAsync(cat);
+
+            repository.Update(model.ToCategory());
+
+            return Ok(model);
         }
 
         [HttpDelete("{id}")]
-        public Category? Delete(int id)
+        public IActionResult Delete(int id)
         {
-            var category = context.Categories.Find(id);
-            if(category != null)
+            var category = repository.GetCategoryById(id);
+            if (category == null)
             {
-                context.Remove(category);
-                context.SaveChanges();
+                return NotFound();
             }
+            repository.Delete(category);
 
-            return category;
+            return NoContent();
         }
 
         [HttpPost]
-        public Category Insert(Category cat)
+        public IActionResult Insert(CategoryModel model)
         {
-            context.Add(cat);
-            context.SaveChanges();
+            if(!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            var categoryToSave = new Category();
 
-            return cat;
+            categoryToSave = model.ToCategory();
+
+            var addedEntity = repository.Add(categoryToSave);
+
+            return CreatedAtAction(nameof(GetById), new {id = categoryToSave.Categoryid }, categoryToSave.ToCategoryModel);
         }
 
     }

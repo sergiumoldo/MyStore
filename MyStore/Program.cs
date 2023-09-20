@@ -1,12 +1,25 @@
 using Microsoft.EntityFrameworkCore;
+using MyStore.Data;
+using MyStore.Services;
 using MyStore.NewFolder;
+using MyStore.MyStore.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
-builder.Services.AddDbContext<StoreContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("StoreDb")));
+
+builder.Services.AddDbContext<StoreContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("StoreDb")
+));
+
+//repository
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IShipperRepository, ShipperRepository>();
+//services
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
