@@ -54,6 +54,44 @@ namespace MyStore.Helpers
 
             return model;
         }
+
+        public static SupplierModel ToSupplierModel(this Supplier domainObject)
+        {
+            var model = new SupplierModel();
+
+            model.Postalcode = domainObject.Postalcode;
+            model.Supplierid = domainObject.Supplierid;
+            model.Address = domainObject.Address;
+            model.Phone = domainObject.Phone;
+            model.Companyname = domainObject.Companyname;
+            model.Contactname = domainObject.Contactname;
+            model.City = domainObject.City;
+            model.Contacttitle = domainObject.Contacttitle;
+            model.Country = domainObject.Country;
+            model.Fax = domainObject.Fax;
+            model.Region    = domainObject.Region;
+
+            return model;
+        }
+
+        public static Supplier ToSupplier(this SupplierModel domainObject)
+        {
+            var model = new Supplier();
+
+            model.Postalcode = domainObject.Postalcode;
+            model.Supplierid = domainObject.Supplierid;
+            model.Address = domainObject.Address;
+            model.Phone = domainObject.Phone;
+            model.Companyname = domainObject.Companyname;
+            model.Contactname = domainObject.Contactname;
+            model.City = domainObject.City;
+            model.Contacttitle = domainObject.Contacttitle;
+            model.Country = domainObject.Country;
+            model.Fax = domainObject.Fax;
+            model.Region = domainObject.Region;
+
+            return model;
+        }
     }
 
 }

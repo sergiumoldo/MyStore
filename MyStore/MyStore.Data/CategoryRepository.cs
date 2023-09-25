@@ -1,4 +1,6 @@
-﻿
+﻿using Azure;
+using Microsoft.VisualBasic;
+using MyStore.MyStore.Data.Interfaces;
 using MyStore.NewFolder;
 using System;
 using System.Collections.Generic;
@@ -19,35 +21,68 @@ namespace MyStore.Data
 
         public Category? GetCategoryById(int id)
         {
-             var s =  storeContext.Categories.Find(id);
-            return s;
+            return storeContext.Categories.Find(id);
         }
 
         public Category Add(Category category)
         {
             var addedEntity = storeContext.Categories.Add(category).Entity;
             storeContext.SaveChanges();
-
             return addedEntity;
+
         }
 
         public int Delete(Category category)
         {
             storeContext.Categories.Remove(category);
-            return  storeContext.SaveChanges();
+            return storeContext.SaveChanges();
         }
 
         public Category Update(Category category)
         {
             var updatedEntity = storeContext.Categories.Update(category).Entity;
             storeContext.SaveChanges();
-
             return updatedEntity;
         }
 
-        public IEnumerable<Category> GetAll()
+        public IEnumerable<Category> GetAll(int page)
         {
-            return storeContext.Categories.ToList();
+            var pageSize = 2;
+            var categories =
+                 storeContext
+                .Categories
+                .Skip(pageSize * (page - 1))
+                .Take(pageSize)
+                .ToList();
+
+            return categories;
+        }
+
+
+        public IQueryable<Category> GetAll(int page, string? text)
+        {
+            var pageSize = 2;
+
+            var categories = storeContext.Categories.AsQueryable();
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                categories = categories.Where(x => x.Description.Contains(text));
+
+            }
+
+            categories = categories.Skip(pageSize * (page - 1))
+                .Take(pageSize);
+
+            return categories;
+        }
+
+
+
+
+        public IQueryable<Category> GetAll()
+        {
+            return storeContext.Categories;
         }
     }
 }

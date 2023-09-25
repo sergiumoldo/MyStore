@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MyStore.Data;
 using MyStore.Helpers;
 using MyStore.Models;
+using MyStore.MyStore.Services.Interfaces;
 using MyStore.NewFolder;
 
 namespace MyStore.Controllers
@@ -11,90 +12,110 @@ namespace MyStore.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        
-        private readonly ICategoryRepository repository;
+        private readonly ICategoryService categoryService;
 
-        public CategoriesController( ICategoryRepository repository)
+        public CategoriesController(ICategoryService categoryService)
         {
-            this.repository = repository;
+
+            this.categoryService = categoryService;
         }
 
         [HttpGet]
-        public IEnumerable<CategoryModel> Get()
+        public IEnumerable<CategoryModel> Get(string? text, int pag = 1)
         {
-            var allcategories = repository.GetAll();
-            var modelToReturn = new List<CategoryModel>();  
+            // implementam paginarea unor rezultate
+            //2. adaugam un filtru de cautare in description dupa un nr de caractere
+            var pageSize = 2;
+            //le iau pe toate
+            var allCategories = categoryService.GetCategories(pag, text);
 
-            foreach(var category in allcategories)
+            //1 2 - > 2(pagesize)*((3 -paginaCurenta)-1))
+            //filtrez si iau doar cele de afisat pe pagina curenta
+            //var currentPageItems = allCategories.Skip(pageSize * (pag - 1)).Take(pageSize).ToList();
+
+            var modelsToReturn = new List<CategoryModel>();
+            foreach (var category in allCategories)
             {
-                modelToReturn.Add(category.ToCategoryModel());
+                modelsToReturn.Add(category.ToCategoryModel());
             }
 
-            return modelToReturn;
+            return modelsToReturn;
         }
+
 
         [HttpGet("{id}")]
         public ActionResult<CategoryModel> GetById(int id)
         {
-            var categoryFromDb = repository.GetCategoryById(id);
 
-            if(categoryFromDb == null)
+            var categoryFromDb = categoryService.GetCategory(id);
+
+            if (categoryFromDb == null)
             {
                 return NotFound();
             }
-
             var model = new CategoryModel();
-
             model = categoryFromDb.ToCategoryModel();
 
             return Ok(model);
         }
 
+
         [HttpPut("{id}")]
         public ActionResult<CategoryModel> Update(int id, CategoryModel model)
         {
-            var cat = repository.GetCategoryById(id);
-
-            if (cat == null)
+            var existingCategory = categoryService.GetCategory(id);
+            if (existingCategory == null)
             {
                 return NotFound();
             }
 
-            TryUpdateModelAsync(cat);
+            TryUpdateModelAsync(existingCategory);
 
-            repository.Update(model.ToCategory());
+            var categoryToUpdate = new Category();
+            categoryToUpdate = model.ToCategory();
+            categoryService.Update(categoryToUpdate);
 
-            return Ok(model);
+            return Ok(categoryToUpdate.ToCategoryModel());
         }
 
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            var category = repository.GetCategoryById(id);
+            var category = categoryService.GetCategory(id);
+
             if (category == null)
             {
                 return NotFound();
             }
-            repository.Delete(category);
+
+            categoryService.Remove(category);
 
             return NoContent();
         }
 
         [HttpPost]
-        public IActionResult Insert(CategoryModel model)
+        public IActionResult Create(CategoryModel model)
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            var categoryToSave = new Category();
 
+            //  business rules
+            if (categoryService.IsDuplicate(model.Categoryname))
+            {
+                ModelState.AddModelError("Categoryname", $"You can't have the duplicate items with the value {model.Categoryname} on categoryName");
+                return Conflict(ModelState);
+            }
+
+            var categoryToSave = new Category();
             categoryToSave = model.ToCategory();
 
-            var addedEntity = repository.Add(categoryToSave);
+            categoryService.InsertNew(categoryToSave);
 
-            return CreatedAtAction(nameof(GetById), new {id = categoryToSave.Categoryid }, categoryToSave.ToCategoryModel);
+            model.Categoryid = categoryToSave.Categoryid;
+            
+            return CreatedAtAction(nameof(GetById), new { id = categoryToSave.Categoryid }, model);
         }
-
     }
 }

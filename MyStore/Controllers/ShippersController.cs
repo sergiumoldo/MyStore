@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MyStore.Data;
 using MyStore.Helpers;
 using MyStore.Models;
-using MyStore.MyStore.Data;
+using MyStore.MyStore.Services.Interfaces;
 using MyStore.NewFolder;
 
 namespace MyStore.Controllers
@@ -11,86 +12,109 @@ namespace MyStore.Controllers
     [ApiController]
     public class ShippersController : ControllerBase
     {
-        private readonly IShipperRepository repository;
+        private readonly IShipperService shipperService;
 
-        public ShippersController(IShipperRepository repository)
+        public ShippersController(IShipperService shipperService)
         {
-            this.repository = repository;
+
+            this.shipperService = shipperService;
         }
 
         [HttpGet]
-        public IEnumerable<ShipperModel> Get()
+        public IEnumerable<ShipperModel> Get(string? text, int pag = 1)
         {
-            var allShippers = repository.GetAll();
-            var modelToReturn = new List<ShipperModel>();
+            // implementam paginarea unor rezultate
+            //2. adaugam un filtru de cautare in description dupa un nr de caractere
+            var pageSize = 2;
+            //le iau pe toate
+            var allShippers = shipperService.GetShippers(pag, text);
 
+            //1 2 - > 2(pagesize)*((3 -paginaCurenta)-1))
+            //filtrez si iau doar cele de afisat pe pagina curenta
+            //var currentPageItems = allCategories.Skip(pageSize * (pag - 1)).Take(pageSize).ToList();
+
+            var modelsToReturn = new List<ShipperModel>();
             foreach (var shipper in allShippers)
             {
-                modelToReturn.Add(shipper.ToShipperModel());
+                modelsToReturn.Add(shipper.ToShipperModel());
             }
 
-            return modelToReturn;
+            return modelsToReturn;
         }
+
 
         [HttpGet("{id}")]
         public ActionResult<ShipperModel> GetById(int id)
         {
-            var shipperFromDb = repository.GetCategoryById(id);
+
+            var shipperFromDb = shipperService.GetShipper(id);
 
             if (shipperFromDb == null)
             {
                 return NotFound();
             }
-
-            var model = shipperFromDb.ToShipperModel();
+            var model = new ShipperModel();
+            model = shipperFromDb.ToShipperModel();
 
             return Ok(model);
         }
 
+
         [HttpPut("{id}")]
         public ActionResult<ShipperModel> Update(int id, ShipperModel model)
         {
-            var cat = repository.GetCategoryById(id);
-
-            if (cat == null)
+            var existingShipper = shipperService.GetShipper(id);
+            if (existingShipper == null)
             {
                 return NotFound();
             }
 
-            TryUpdateModelAsync(cat);
+            TryUpdateModelAsync(existingShipper);
 
-            repository.Update(model.ToShipper());
+            var shipperToUpdate = new Shipper();
+            shipperToUpdate = model.ToShipper();
+            shipperService.Update(shipperToUpdate);
 
-            return Ok(model);
+            return Ok(shipperToUpdate.ToShipperModel());
         }
 
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            var category = repository.GetCategoryById(id);
-            if (category == null)
+            var shipper = shipperService.GetShipper(id);
+
+            if (shipper == null)
             {
                 return NotFound();
             }
-            repository.Delete(category);
+
+            shipperService.Remove(shipper);
 
             return NoContent();
         }
 
         [HttpPost]
-        public IActionResult Insert(ShipperModel model)
+        public IActionResult Create(ShipperModel model)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            var shipperToSave = new Shipper();
 
+            if (shipperService.IsDuplicate(model.Companyname))
+            {
+                ModelState.AddModelError("CompanyName ", $"You can't have the duplicate items with the value {model.Companyname} on Companyname");
+                return Conflict(ModelState);
+            }
+
+            var shipperToSave = new Shipper();
             shipperToSave = model.ToShipper();
 
-            var addedEntity = repository.Add(shipperToSave);
+            shipperService.InsertNew(shipperToSave);
 
-            return CreatedAtAction(nameof(GetById), new { id = shipperToSave.Shipperid }, shipperToSave.ToShipperModel);
+            model.Shipperid = shipperToSave.Shipperid;
+
+            return CreatedAtAction(nameof(GetById), new { id = shipperToSave.Shipperid }, model);
         }
     }
 }
